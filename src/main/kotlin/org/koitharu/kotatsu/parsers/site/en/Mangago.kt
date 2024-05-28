@@ -1,23 +1,33 @@
 package org.koitharu.kotatsu.parsers.site.en
 
+import okhttp3.Interceptor
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.Request
+import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.jsoup.nodes.Document
 import org.koitharu.kotatsu.parsers.MangaLoaderContext
 import org.koitharu.kotatsu.parsers.MangaSourceParser
 import org.koitharu.kotatsu.parsers.PagedMangaParser
+import org.koitharu.kotatsu.parsers.bitmap.Bitmap
+import org.koitharu.kotatsu.parsers.bitmap.Rect
 import org.koitharu.kotatsu.parsers.config.ConfigKey
 import org.koitharu.kotatsu.parsers.model.*
 import org.koitharu.kotatsu.parsers.util.*
+import java.awt.Canvas
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
 import java.text.SimpleDateFormat
 import java.util.EnumSet
 import java.util.Locale
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
+import kotlin.math.min
 
 @MangaSourceParser("MANGAGO", "Mangago", "en", ContentType.HENTAI)
 internal class Mangago(context: MangaLoaderContext) :
-	PagedMangaParser(context, MangaSource.MANGAGO, 48, 10) {
+	PagedMangaParser(context, MangaSource.MANGAGO, 48, 10), Interceptor {
 
 	override val availableSortOrders: Set<SortOrder> = EnumSet.of(SortOrder.POPULARITY, SortOrder.NEWEST, SortOrder.UPDATED)
 	override val availableStates: Set<MangaState> = EnumSet.of(MangaState.ONGOING, MangaState.FINISHED)
@@ -166,14 +176,12 @@ internal class Mangago(context: MangaLoaderContext) :
 		val obfuscatedChapterJs = context.httpClient.newCall(request).execute().body!!.string()
 
 		val deobfChapterJs = SoJsonV4Deobfuscator.decode(obfuscatedChapterJs)
-
+		println(deobfChapterJs)
 		val key = findHexEncodedVariable(deobfChapterJs, "key").decodeHex()
-		val iv = findHexEncodedVariable(deobfChapterJs, "iv").decodeHex()
-		val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
 		val keyS = SecretKeySpec(key, aes)
-		cipher.init(Cipher.DECRYPT_MODE, keyS, IvParameterSpec(iv))
+		val rawImgArray = CryptoAES(context).decrypt(context.encodeBase64(imgsrcs),  findHexEncodedVariable(deobfChapterJs, "key"))
 
-		var imageList = cipher.doFinal(imgsrcs).toString(Charsets.UTF_8)
+		var imageList = rawImgArray
 
 		try {
 			val keyLocations = keyLocationRegex.findAll(deobfChapterJs).map {
@@ -285,4 +293,47 @@ internal class Mangago(context: MangaLoaderContext) :
 			return args.map { it.toInt().toChar() }.joinToString("")
 		}
 	}
+	override fun intercept(chain: Interceptor.Chain): Response {
+		val response = chain.proceed(chain.request())
+
+		val fragment = response.request.url.fragment ?: return response
+
+		// desckey=...&cols=...
+		val key = fragment.substringAfter("desckey=").substringBefore("&")
+		val cols = fragment.substringAfter("&cols=").toIntOrNull() ?: return response
+
+		return context.redrawImageResponse(response) { bitmap ->
+			val width = bitmap.width
+			val height = bitmap.height
+
+			val result = context.createBitmap(width, height)
+
+			val unitWidth = width / cols
+			val unitHeight = height / cols
+
+			val keyArray = key.split("a")
+
+			for (idx in 0 until cols * cols) {
+				val keyval = keyArray[idx].ifEmpty { "0" }.toInt()
+
+				val heightY = keyval.floorDiv(cols)
+				val dy = heightY * unitHeight
+				val dx = (keyval - heightY * cols) * unitWidth
+
+				val widthY = idx.floorDiv(cols)
+				val sy = widthY * unitHeight
+				val sx = (idx - widthY * cols) * unitWidth
+
+				val srcRect = Rect(sx, sy, sx + unitWidth, sy + unitHeight)
+				val dstRect = Rect(dx, dy, dx + unitWidth, dy + unitHeight)
+
+				result.drawBitmap(bitmap, srcRect, dstRect)
+			}
+
+			return@redrawImageResponse result
+		}
+
+	}
+
+
 }
