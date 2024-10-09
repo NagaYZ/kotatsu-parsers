@@ -35,21 +35,6 @@ internal abstract class MadaraParser(
 	// Change these values only if the site does not support manga listings via ajax
 	protected open val withoutAjax = false
 
-	override val filterCapabilities: MangaListFilterCapabilities
-		get() = MangaListFilterCapabilities(
-			isMultipleTagsSupported = true,
-			isTagsExclusionSupported = !withoutAjax,
-			isSearchSupported = true,
-			isSearchWithFiltersSupported = true,
-			isYearSupported = true,
-		)
-
-	override suspend fun getFilterOptions() = MangaListFilterOptions(
-		availableTags = fetchAvailableTags(),
-		availableStates = EnumSet.allOf(MangaState::class.java),
-		availableContentRating = EnumSet.of(ContentRating.SAFE, ContentRating.ADULT),
-	)
-
 	override val availableSortOrders: Set<SortOrder> = setupAvailableSortOrders()
 
 	private fun setupAvailableSortOrders(): Set<SortOrder> {
@@ -78,6 +63,21 @@ internal abstract class MadaraParser(
 			)
 		}
 	}
+
+	override val filterCapabilities: MangaListFilterCapabilities
+		get() = MangaListFilterCapabilities(
+			isMultipleTagsSupported = true,
+			isTagsExclusionSupported = !withoutAjax,
+			isSearchSupported = true,
+			isSearchWithFiltersSupported = true,
+			isYearSupported = true,
+		)
+
+	override suspend fun getFilterOptions() = MangaListFilterOptions(
+		availableTags = fetchAvailableTags(),
+		availableStates = EnumSet.allOf(MangaState::class.java),
+		availableContentRating = EnumSet.of(ContentRating.SAFE, ContentRating.ADULT),
+	)
 
 	override val authUrl: String
 		get() = "https://${domain}"
@@ -678,15 +678,16 @@ internal abstract class MadaraParser(
 					"No image found, try to log in",
 					fullUrl,
 				)
-				return root.select(selectPage).map { div ->
-					val img = div.selectFirstOrThrow("img")
-					val url = img.src()?.toRelativeUrl(domain) ?: div.parseFailed("Image src not found")
-					MangaPage(
-						id = generateUid(url),
-						url = url,
-						preview = null,
-						source = source,
-					)
+				return root.select(selectPage).flatMap { div ->
+					div.selectOrThrow("img").map { img ->
+						val url = img.src()?.toRelativeUrl(domain) ?: div.parseFailed("Image src not found")
+						MangaPage(
+							id = generateUid(url),
+							url = url,
+							preview = null,
+							source = source,
+						)
+					}
 				}
 			}
 		} else {
@@ -791,10 +792,10 @@ internal abstract class MadaraParser(
 			WordSet("jam", "saat", "heure", "hora", "horas", "hour", "hours", "h", "ساعات", "ساعة")
 				.anyWordIn(date) -> cal.apply { add(Calendar.HOUR, -number) }.timeInMillis
 
-			WordSet("hari", "gün", "jour", "día", "dia", "day", "days", "d", "день")
+			WordSet("hari", "gün", "jour", "día", "dia", "day", "días", "days", "d", "день")
 				.anyWordIn(date) -> cal.apply { add(Calendar.DAY_OF_MONTH, -number) }.timeInMillis
 
-			WordSet("month", "months", "أشهر", "mois")
+			WordSet("month", "months", "أشهر", "mois", "meses", "mes")
 				.anyWordIn(date) -> cal.apply { add(Calendar.MONTH, -number) }.timeInMillis
 
 			WordSet("year")

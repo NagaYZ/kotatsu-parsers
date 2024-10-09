@@ -13,16 +13,15 @@ import org.koitharu.kotatsu.parsers.network.UserAgents
 import org.koitharu.kotatsu.parsers.util.*
 import java.text.SimpleDateFormat
 import java.util.*
+import org.koitharu.kotatsu.parsers.Broken
 
+@Broken
 @MangaSourceParser("BLOGTRUYENVN", "BlogTruyenVN", "vi")
 internal class BlogTruyenVNParser(context: MangaLoaderContext) :
 	PagedMangaParser(context, MangaParserSource.BLOGTRUYENVN, pageSize = 20) {
 
 	override val configKeyDomain: ConfigKey.Domain
-		get() = ConfigKey.Domain("blogtruyen.vn")
-
-	override val availableSortOrders: Set<SortOrder>
-		get() = EnumSet.of(SortOrder.UPDATED)
+		get() = ConfigKey.Domain("blogtruyenvn.org", "blogtruyenvn.com")
 
 	override val userAgentKey = ConfigKey.UserAgent(UserAgents.CHROME_DESKTOP)
 
@@ -31,8 +30,8 @@ internal class BlogTruyenVNParser(context: MangaLoaderContext) :
 		keys.add(userAgentKey)
 	}
 
-	private val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.US)
-	private var cacheTags = SuspendLazy(::fetchTags)
+	override val availableSortOrders: Set<SortOrder>
+		get() = EnumSet.of(SortOrder.UPDATED)
 
 	override val filterCapabilities: MangaListFilterCapabilities
 		get() = MangaListFilterCapabilities(
@@ -42,6 +41,9 @@ internal class BlogTruyenVNParser(context: MangaLoaderContext) :
 	override suspend fun getFilterOptions() = MangaListFilterOptions(
 		availableTags = cacheTags.get().values.toSet(),
 	)
+
+	private val dateFormat = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.US)
+	private var cacheTags = SuspendLazy(::fetchTags)
 
 	override suspend fun getListPage(page: Int, order: SortOrder, filter: MangaListFilter): List<Manga> {
 		return when {

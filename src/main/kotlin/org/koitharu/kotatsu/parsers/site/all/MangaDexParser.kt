@@ -82,7 +82,13 @@ internal class MangaDexParser(context: MangaLoaderContext) : MangaParser(context
 				MangaState.ABANDONED,
 			),
 			availableContentRating = EnumSet.allOf(ContentRating::class.java),
-			availableDemographics = EnumSet.allOf(Demographic::class.java),
+			availableDemographics = EnumSet.of(
+				Demographic.SHOUNEN,
+				Demographic.SHOUJO,
+				Demographic.SEINEN,
+				Demographic.JOSEI,
+				Demographic.NONE,
+			),
 			availableLocales = localesDeferred.await(),
 		)
 	}
@@ -164,18 +170,27 @@ internal class MangaDexParser(context: MangaLoaderContext) : MangaParser(context
 						Demographic.SEINEN -> "seinen"
 						Demographic.JOSEI -> "josei"
 						Demographic.NONE -> "none"
+						else -> ""
 					},
 				)
 			}
 
 			filter.locale?.let {
 				append("&availableTranslatedLanguage[]=")
-				append(it.language)
+				if (it.language == "in") {
+					append("id")
+				} else {
+					append(it.language)
+				}
 			}
 
 			filter.originalLocale?.let {
 				append("&originalLanguage[]=")
-				append(it.language)
+				if (it.language == "in") {
+					append("id")
+				} else {
+					append(it.language)
+				}
 			}
 
 			if (filter.year != 0) {

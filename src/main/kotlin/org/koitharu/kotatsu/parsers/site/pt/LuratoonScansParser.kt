@@ -13,17 +13,17 @@ import org.koitharu.kotatsu.parsers.util.*
 import java.text.SimpleDateFormat
 import java.util.zip.ZipInputStream
 
-@Broken // Not dead but totally changed structure
+@Broken // Not dead but changed template
 @MangaSourceParser("RANDOMSCANS", "LuratoonScan", "pt")
 internal class LuratoonScansParser(context: MangaLoaderContext) :
 	SinglePageMangaParser(context, MangaParserSource.RANDOMSCANS),
 	Interceptor {
 
-	override val availableSortOrders = setOf(SortOrder.ALPHABETICAL)
-
 	override val configKeyDomain = ConfigKey.Domain("luratoons.com")
 
 	override fun getRequestHeaders(): Headers = Headers.Builder().add("User-Agent", config[userAgentKey]).build()
+
+	override val availableSortOrders = setOf(SortOrder.ALPHABETICAL)
 
 	override val filterCapabilities: MangaListFilterCapabilities
 		get() = MangaListFilterCapabilities()
@@ -128,9 +128,11 @@ internal class LuratoonScansParser(context: MangaLoaderContext) :
 	override fun intercept(chain: Interceptor.Chain): Response {
 		val response = chain.proceed(chain.request())
 		if (response.mimeType == "application/octet-stream") {
-			val (bytes, name) = ZipInputStream(checkNotNull(response.body).byteStream()).use {
-				val entry = it.nextEntry
-				it.readBytes() to entry?.name
+			val (bytes, name) = response.use { resp ->
+				ZipInputStream(resp.requireBody().byteStream()).use {
+					val entry = it.nextEntry
+					it.readBytes() to entry?.name
+				}
 			}
 			val type = if (name?.endsWith(".avif", ignoreCase = true) == true) {
 				"image/avif"

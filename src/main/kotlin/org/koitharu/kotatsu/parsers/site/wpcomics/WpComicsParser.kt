@@ -38,30 +38,6 @@ internal abstract class WpComicsParser(
 		SortOrder.RATING,
 	)
 
-	protected open val listUrl = "/tim-truyen"
-	protected open val datePattern = "dd/MM/yy"
-
-	init {
-		paginator.firstPage = 1
-		searchPaginator.firstPage = 1
-	}
-
-	@JvmField
-	protected val ongoing: Set<String> = setOf(
-		"Đang tiến hành",
-		"Ongoing",
-		"Updating",
-		"連載中",
-	)
-
-	@JvmField
-	protected val finished: Set<String> = setOf(
-		"Hoàn thành",
-		"Complete",
-		"Completed",
-		"完結済み",
-	)
-
 	override val filterCapabilities: MangaListFilterCapabilities
 		get() = MangaListFilterCapabilities(
 			isSearchSupported = true,
@@ -71,6 +47,32 @@ internal abstract class WpComicsParser(
 		availableTags = fetchAvailableTags(),
 		availableStates = EnumSet.of(MangaState.ONGOING, MangaState.FINISHED),
 	)
+
+	init {
+		paginator.firstPage = 1
+		searchPaginator.firstPage = 1
+	}
+
+	@JvmField
+	protected val ongoing: Set<String> = setOf(
+		"Đang tiến hành",
+		"Đang cập nhật",
+		"Ongoing",
+		"Updating",
+		"連載中",
+	)
+
+	@JvmField
+	protected val finished: Set<String> = setOf(
+		"Hoàn thành",
+		"Đã hoàn thành",
+		"Complete",
+		"Completed",
+		"完結済み",
+	)
+
+	protected open val listUrl = "/tim-truyen"
+	protected open val datePattern = "dd/MM/yy"
 
 	override suspend fun getListPage(page: Int, order: SortOrder, filter: MangaListFilter): List<Manga> {
 		val response =

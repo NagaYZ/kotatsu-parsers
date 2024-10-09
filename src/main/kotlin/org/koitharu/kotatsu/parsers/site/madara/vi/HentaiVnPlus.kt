@@ -6,9 +6,9 @@ import org.koitharu.kotatsu.parsers.model.ContentType
 import org.koitharu.kotatsu.parsers.model.MangaParserSource
 import org.koitharu.kotatsu.parsers.site.madara.MadaraParser
 
-@MangaSourceParser("HENTAIVNFIT", "HentaiVnFit", "vi", ContentType.HENTAI)
-internal class HentaiVnCafe(context: MangaLoaderContext) :
-	MadaraParser(context, MangaParserSource.HENTAIVNFIT, "hentaivn.fit", 24) {
+@MangaSourceParser("HENTAIVNPLUS", "HentaiVnPlus", "vi", ContentType.HENTAI)
+internal class HentaiVnPlus(context: MangaLoaderContext) :
+	MadaraParser(context, MangaParserSource.HENTAIVNPLUS, "hentaivn.chat", 24) {
 	override val listUrl = "truyen-hentai/"
 	override val tagPrefix = "the-loai/"
 	override val datePattern = "dd/MM/yyyy"
